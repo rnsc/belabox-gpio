@@ -5,6 +5,11 @@
 This repository aims at providing a simple Python package that can be used to control the belabox software.
 <https://github.com/BELABOX/>
 
+### Disclaimer
+
+This is an independant project from BELABOX and they're not responsible for any support regarding this piece of software.
+I also will do limited support, this software requires that you're knowledgeable enough to install a button or an I2C LCD screen on your GPIO.
+
 ## Features
 
 v0.1.0:
