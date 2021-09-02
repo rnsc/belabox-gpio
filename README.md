@@ -12,7 +12,7 @@ I also will do limited support, this software requires that you're knowledgeable
 
 ## Features
 
-v0.1.0:
+v0.1.1:
 
 * Supports a button connected on your Jetson nano GPIO.
 * The button can be used to start and stop your encoder via a long press.
