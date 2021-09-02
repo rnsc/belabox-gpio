@@ -1,15 +1,14 @@
 [Unit]
-Description=Automagic fan control
+Description=Belaboxgpio
 
 [Service]
 Type=simple
 ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/python3 -u /usr/local/bin/jetsonfanctl
-ExecStopPost=/bin/sh -c '/bin/echo 0 > /sys/devices/pwm-fan/target_pwm'
+ExecStart=/usr/bin/python3 -u /usr/local/bin/belaboxgpio
 User=root
 StandardOutput=journal+console
 Restart=always
-SyslogIdentifier=automagic-fan
+SyslogIdentifier=belaboxgpio
 
 [Install]
 WantedBy=multi-user.target
