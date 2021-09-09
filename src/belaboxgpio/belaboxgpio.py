@@ -2,13 +2,14 @@
 
 from RPLCD.i2c import CharLCD
 import RPi.GPIO as GPIO
+import websocket
+
 import time
 import signal
-import urllib.request
-import urllib.parse
-from pathlib import Path
 import json
+import threading
 
+# GPIO vars
 btn_pin = 15
 
 delay = 0.5
@@ -16,46 +17,80 @@ rapid_fire_delay = 3.0
 bounce = 500
 last_press_time = time.time() + rapid_fire_delay
 
+# BelaUI vars
+stream_status = False
+
+url = 'ws://localhost'
+auth_obj = { "auth": {}}
+status_obj = { "status" }
+stop_obj = { "stop": 0 }
+
+belaUI_config = {}
+
+# WebSocket client handlers
+
+def messageHandler(ws, message):
+  global stream_status
+  global belaUI_config
+  json_msg = json.loads(message)
+  #print(json_msg)
+  for msg_type in json_msg:
+    if msg_type == "status":
+      stream_status = json_msg.get('status').get('is_streaming')
+    if msg_type == "config":
+        belaUI_config = json_msg.get('config')
+
+def openHandler(ws):
+  print('ws open')
+  ws.send(json.dumps(auth_obj))
+
+def errorHandler(ws, error):
+  print('ws error')
+  print(error)
+
+def closeHandler(ws, close_status_code, close_msg):
+  print('ws close')
+  time.sleep(5)
+  websocket_connect()
+
+# WebSocket client init
+websocket.enableTrace(False)
+ws = websocket.WebSocketApp(url,
+                            on_open=openHandler,
+                            on_message=messageHandler,
+                            on_error=errorHandler,
+                            on_close=closeHandler
+                            )
+
+# Put the WebSocket in a Thread and reconnect on close
+def websocket_connect():
+  wst = threading.Thread(target=ws.run_forever)
+  wst.daemon = True
+  wst.start()
+
+# GPIO functions
 
 def exit_handler(sig, frame):
   #lcd = CharLCD('PCF8574', 0x27)
   #lcd.clear()
+  print('SIGINT received')
   GPIO.cleanup()
   print('\r')
 
-def belacoder_toggle():
+def belacoder_toggle(ws, stream_status):
   print('belacoder toggle')
-  req = urllib.request.Request('http://localhost/status')
-  try:
-    with urllib.request.urlopen(req) as response:
-      status = response.read().decode('utf-8')
-      print("Is encoder started? ", status)
-  except urllib.error.URLError as e:
-    print(e.reason)
 
-  if status == 'false':
+  if stream_status == False:
     print("Starting encoder")
-    file_handle = open(str(Path.home())+'/belaUI/config.json')
-    belaUI_config = json.load(file_handle)
-    form_data = urllib.parse.urlencode(belaUI_config).encode()
-    req = urllib.request.Request('http://localhost/start', form_data)
-    try:
-      with urllib.request.urlopen(req) as response:
-        start_result = response.read().decode('utf-8')
-      print(start_result)
-    except urllib.error.URLError as e:
-      print(e.reason)
+    start_obj = { "start": belaUI_config }
+    ws.send(json.dumps(start_obj))
 
-  if status == 'true':
+  if stream_status == True:
     print("Stopping encoder")
-    form_data = urllib.parse.urlencode({}).encode()
-    req = urllib.request.Request('http://localhost/stop', form_data)
-    try:
-      with urllib.request.urlopen(req) as response:
-        stop_result = response.read().decode('utf-8')
-      print(stop_result)
-    except urllib.error.URLError as e:
-      print(e.reason)
+    ws.send(json.dumps(stop_obj))
+
+def status_update():
+  ws.send(json.dumps(auth_obj))
 
 def pressed(channel):
   global btn_pin
@@ -75,12 +110,13 @@ def pressed(channel):
         if counter >= 6:
           last_press_time = time.time()
           print('long press')
-          belacoder_toggle()
+          belacoder_toggle(ws, stream_status)
           break
       elif GPIO.input(btn_pin) == 0:
         last_press_time = time.time()
         #lcd_print("Short press")
         print('short press')
+        status_update()
         break
     else:
       print('prevent rapid clics')
@@ -117,6 +153,12 @@ def main():
   # Add event callback for button
   GPIO.add_event_detect(btn_pin, GPIO.RISING, callback=pressed, bouncetime=bounce)
 
+  # Start WebSocket client
+  websocket_connect()
+
   # Wait for SIGINT to exit
   signal.signal(signal.SIGINT, exit_handler)
   signal.pause()
+
+if __name__ == "__main__":
+  main()

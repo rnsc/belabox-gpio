@@ -18,6 +18,10 @@ v0.1.1:
 * The button can be used to start and stop your encoder via a long press.
   * The button itself just sends a command to toggle the current status that you'd find in belaUI.
 
+v0.2.0:
+
+* Support for the new belaUI on WebSocket
+
 Unreleased:
 
 * Display information regarding the Jetson nano and belabox on an I2C 16x2 LCD screen.
