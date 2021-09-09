@@ -1,5 +1,6 @@
 [Unit]
 Description=Belaboxgpio
+After=belaUI.service
 
 [Service]
 Type=simple
